@@ -55,7 +55,7 @@ class DFM(object):
         self.states = []
 
     def populate_states(self):
-        tokens = parse_regex(self.regex)
+        tokens = demo_parse_regex(self.regex)
 
         self.states.append()
         pass
@@ -66,13 +66,12 @@ class DFM(object):
     def match(self, s):
         pass
 
-
 class State(object):
     """Transitions in the order we want to do them"""
     def __repr__(self):
         return self.name
 
-    def __init__(self, check_next, check_self, name=None):
+    def __init__(self, check_next, check_self, allow_no_consume, name=None):
         """Given a thing"""
         self.check_next = check_next
         self.check_self = check_self
@@ -192,8 +191,9 @@ def expand_multiple_nums(l):
             raise Exception('Logic Error')
     return new_l
 
-def parse_regex(expression):
+def demo_parse_regex(expression):
     """turns regex string into states of DFM"""
+    print expression
     l = list(expression)
     print l
     l = group_classes(l)
@@ -201,38 +201,35 @@ def parse_regex(expression):
     l = associate_modifiers(l)
     print l
     l = expand_multiple_nums(l)
+    print l
     return l
 
+def test():
+    # a[bc]d matching into
+    # abd
+    a = State('state 1')
+    b = State('state 2')
+    c = State('state 3')
+    a.transitions.append((get_is_char('a'), b))
+    b.transitions.append((get_is_in_char_set(['b', 'c']), c))
+    b.transitions.append((lambda x: True, a))
+    c.transitions.append((get_is_char('d'), 'finish'))
+    c.transitions.append((lambda x: True, b))
 
+    s = list('abd')
+    new_state = a
+    while True:
+        new_state = new_state.get_transition(s)
+        #print 'moving to', new_state
+        if new_state == 'finish':
+            print 'finished, match!'
+            break
+    #test()
 
 if __name__ == '__main__':
     import doctest
     doctest.testmod()
 
-    parse_regex('as{1,23}df[23]+dfp*d.')
+    demo_parse_regex('asd?')
+    demo_parse_regex('as{1,23}df[23]+dfp*d.')
 
-    import sys
-    sys.exit()
-
-    def test():
-        # a[bc]d matching into
-        # abd
-        a = State('state 1')
-        b = State('state 2')
-        c = State('state 3')
-        a.transitions.append((get_is_char('a'), b))
-        b.transitions.append((get_is_in_char_set(['b', 'c']), c))
-        b.transitions.append((lambda x: True, a))
-        c.transitions.append((get_is_char('d'), 'finish'))
-        c.transitions.append((lambda x: True, b))
-
-        s = list('abd')
-        new_state = a
-        while True:
-            new_state = new_state.get_transition(s)
-            #print 'moving to', new_state
-            if new_state == 'finish':
-                print 'finished, match!'
-                break
-
-    test()
