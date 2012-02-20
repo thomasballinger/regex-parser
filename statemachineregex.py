@@ -5,7 +5,7 @@ from stringtests import get_return_True
 from regexparsing import parse_regex
 
 def convert_one_to_state_descriptions(char_class, num):
-    """Creats states for a given char class and num
+    """Creates lists of transitions for a given char class and num
     char class is a list of chars
     num can be 1, ?, or inf
 
@@ -32,7 +32,10 @@ def convert_one_to_state_descriptions(char_class, num):
     return descriptions
 
 def create_state_machine(l):
-    """Creates states for each char class and num"""
+    """Creates states for each char class and num
+    >>> create_state_machine([[['a'], 1], [['b'], 1]])
+    [state 0, state 1, finished]
+    """
     m = []
     for char_class, num in l:
         m.append(convert_one_to_state_descriptions(char_class, num))
@@ -65,6 +68,7 @@ def create_state_machine(l):
     return states
 
 class State(object):
+    """Represents a state of a finite state machine, meaning transitions"""
     def __init__(self, name=None):
         self.name = name or 'unnamed'
         self.transitions = []
@@ -151,11 +155,23 @@ class Regex(object):
             self.search_states = self.parse_regex('.*'+self.expression)
         return self.search_states[0].search(s, 0, allow_finish_early=True)
 
+def demo_regex(p, s):
+    r1 = Regex(p).match(s)
+    r2 = Regex(p).search(s)
+    print 'pattern: "'+p+'"'
+    print 'string:', s
+    print 'exact match:', r1
+    print 'somewhere:', r2
+
 if __name__ == '__main__':
     import doctest
     doctest.testmod(optionflags=doctest.ELLIPSIS)
 
     from regexparsing import demo_parse_regex
-    demo_parse_regex('[ab]cd')
+    print 'Regex parsing demo'
     demo_parse_regex('as{3,6}df[eg]+dfp*d.')
+    print
+
+    print 'Regex matching demo'
+    demo_regex('ab+d', 'rkabdcd')
 
