@@ -31,9 +31,9 @@ def convert_one_to_state_descriptions(char_class, num):
         raise Exception('Logic Error!')
     return descriptions
 
-def create_state_machine(l):
+def create_state_machine(l, parent):
     """Creates states for each char class and num
-    >>> create_state_machine([[['a'], 1], [['b'], 1]])
+    >>> create_state_machine([[['a'], 1], [['b'], 1]], None)
     [state 0, state 1, finished]
     """
     m = []
@@ -47,11 +47,11 @@ def create_state_machine(l):
         inner_list = []
         groups_of_states.append(inner_list)
         for transition_set in group_of_transition_sets:
-            state = State('state '+str(counter))
+            state = State(parent, 'state '+str(counter))
             state.transitions = transition_set
             inner_list.append(state)
             counter += 1
-    groups_of_states.append([State('finished')])
+    groups_of_states.append([State(parent, 'finished')])
 
     # remove 'next' and 'here' placeholders
     for group_index, group_of_states in enumerate(groups_of_states):
@@ -69,7 +69,8 @@ def create_state_machine(l):
 
 class State(object):
     """Represents a state of a finite state machine, meaning transitions"""
-    def __init__(self, name=None):
+    def __init__(self, parent, name=None):
+        self.parent = parent
         self.name = name or 'unnamed'
         self.transitions = []
     def __repr__(self):
@@ -85,26 +86,6 @@ class State(object):
                 working.append((transition[1], result))
         return working
 
-    def search(self, s, initial_index, allow_finish_early=False):
-        """Populates yet_to_try, commences trying, return True if found"""
-        yet_to_try = self.find_working_transitions(s, initial_index)
-        #print 'transitions to try:', yet_to_try
-        while True:
-            try:
-                state, index = yet_to_try.pop(0)
-            except IndexError:
-                #print 'nothing left to try! return False'
-                return False
-            if state.name == 'finished':
-                #print 'found finished!'
-                if len(s) == index or allow_finish_early:
-                    return True
-                else:
-                    return False
-            if state.search(s, index, allow_finish_early=allow_finish_early):
-                #print 'exiting branch that worked!'
-                return True
-            #print 'exiting branch that didn\'t work'
 
 class Regex(object):
     """Represents a regex pattern, can test strings
@@ -132,6 +113,7 @@ class Regex(object):
         self.expression = expression
         self.states = self.parse_regex(expression)
         self.search_states = None
+        self.method = 'depth-first'
 
     def __repr__(self):
         return '<parsed regex for "'+self.expression+'">'
@@ -139,27 +121,79 @@ class Regex(object):
     def parse_regex(self, expression):
         """Turns regex string into states of DFM"""
         l = parse_regex(expression)
-        states = create_state_machine(l)
+        states = create_state_machine(l, self)
         return states
 
+    def add_to_yet_to_try(self, items, use_search_states_instead=False):
+        if self.method == 'depth-first':
+            # then use a stack
+            for item in items:
+                self.yet_to_try.insert(0, item)
+        elif self.method == 'breadth-first':
+            # then use a queue
+            for item in items:
+                self.yet_to_try.append(0, item)
+
+    def get_next_try(self):
+        if len(self.yet_to_try) == 0:
+            return False
+        return self.yet_to_try.pop(0)
+
     def match(self, s):
-        """Returns true if string matches"""
-        return self.states[0].search(s, 0)
+        """Returns True if entire string matches pattern
+        >>> [Regex('abc').match(x) for x in ['abc', 'xabc', 'abcx', 'ac']]
+        [True, False, False, False]
+        """
+        self.string = s
+        self.yet_to_try = [(self.states[0], 0)]
+        while True:
+            r = self.explore_next_node(allow_finish_early=False)
+            if type(r) == bool:
+                return r
 
     def search(self, s):
         """Returns true if string anywhere in file
         >>> [Regex('abc').search(x) for x in ['abc', '  abc  ', 'axabxabcx', 'xabcx', 'xaxbxc']]
         [True, True, True, True, False]
         """
+        self.string = s
         if not self.search_states:
             self.search_states = self.parse_regex('.*'+self.expression)
-        return self.search_states[0].search(s, 0, allow_finish_early=True)
+        self.yet_to_try = [(self.search_states[0], 0)]
+        while True:
+            r = self.explore_next_node(allow_finish_early=True)
+            if type(r) == bool:
+                return r
+
+    def explore_next_node(self, allow_finish_early=False, use_search_states_instead=False):
+        """Finds new moves for a state, adds them to self.yet_to_try.
+        A "node" is a (State, string index) combination, as returned from
+        State.find_working_transitions"""
+        try:
+            state, index = self.get_next_try()
+        except TypeError:
+            return False
+        #print 'trying this state:', state, index
+        nodes = state.find_working_transitions(self.string, index)
+        #print 'found these nodes we should try', nodes
+        for state, index in nodes:
+            if state.name == 'finished':
+                #print 'found finished!'
+                if len(self.string) == index or allow_finish_early:
+                    return True
+                else:
+                    pass
+        self.add_to_yet_to_try(nodes)
+
 
 def demo_regex(p, s):
     r1 = Regex(p).match(s)
     r2 = Regex(p).search(s)
     print 'pattern: "'+p+'"'
-    print 'string:', s
+    if len(s) < 60:
+        print 'string:', s
+    else:
+        print 'string too long to print'
     print 'exact match:', r1
     print 'somewhere:', r2
 
@@ -173,5 +207,5 @@ if __name__ == '__main__':
     print
 
     print 'Regex matching demo'
-    demo_regex('ab+d', 'rkabdcd')
+    demo_regex('a.*d', 'aasdfasdfd')
 
