@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+echo grep
+time cat statemachineregex.py | grep -G foo
+echo mine
+time cat statemachineregex.py | ./tomgrep.py foo

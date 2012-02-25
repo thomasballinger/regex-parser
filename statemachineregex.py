@@ -208,4 +208,5 @@ if __name__ == '__main__':
 
     print 'Regex matching demo'
     demo_regex('a.*d', 'aasdfasdfd')
+    # foo
 
